@@ -77,9 +77,9 @@ func TestLocalFS_New(t *testing.T) {
 	file := lfs.New(LeagueFileType, 2023)
 	const TS = "20211125011947"
 	ts, _ := NewTimestamp(TS)
-	assert.Equal(t, fmt.Sprintf("2023/league/league.%s.txt", TS), Path(file, ts))
+	assert.Equal(t, fmt.Sprintf("2023/league/league.txt.%s", TS), Path(file, ts))
 	file = lfs.New(RosterFileType, 2023, 3, "2023-10-19")
-	assert.Equal(t, fmt.Sprintf("2023/roster/team-3/roster-3-2023-10-19.%s.json", TS), Path(file, ts))
+	assert.Equal(t, fmt.Sprintf("2023/roster/team-3/roster-3-2023-10-19.json.%s", TS), Path(file, ts))
 	// should panic if not registered
 	assert.Panics(t, func() { lfs.New(99) }, "The code did not panic")
 }
@@ -114,7 +114,7 @@ func TestLocalFS_Versions(t *testing.T) {
 func TestLocalFS_Versions_Error(t *testing.T) {
 	t.Parallel()
 	lfs := newTestLocalFS()
-	lfs.rootPath = "./test-data/missing"
+	lfs.RootPath = "./test-data/missing"
 	file := lfs.New(LeagueFileType, 2023)
 	versions, err := lfs.Versions(file)
 	assert.Nil(t, versions)
@@ -130,7 +130,7 @@ func TestLocalFS_Write(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(path.Join(lfs.rootPath, Path(file, ts)))
+	data, err := os.ReadFile(path.Join(lfs.RootPath, Path(file, ts)))
 	assert.Equal(t, "new hello world", string(data))
 }
 
@@ -147,13 +147,13 @@ func TestLocalFS_Remove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	finfo, err := os.Stat(path.Join(lfs.rootPath, Path(file, ts)))
+	finfo, err := os.Stat(path.Join(lfs.RootPath, Path(file, ts)))
 	assert.NotNil(t, finfo)
 	assert.Nil(t, err)
 	if err := lfs.Remove(file, ts); err != nil {
 		t.Fatal(err)
 	}
-	finfo, err = os.Stat(path.Join(lfs.rootPath, Path(file, ts)))
+	finfo, err = os.Stat(path.Join(lfs.RootPath, Path(file, ts)))
 	assert.Nil(t, finfo)
 	assert.True(t, errors.Is(err, os.ErrNotExist))
 }
@@ -161,7 +161,7 @@ func TestLocalFS_Remove(t *testing.T) {
 func TestLocalFS_Remove_Err(t *testing.T) {
 	t.Parallel()
 	lfs := newTestLocalFS()
-	lfs.rootPath = "./test-data/missing"
+	lfs.RootPath = "./test-data/missing"
 	file := lfs.New(LeagueFileType, 2023)
 	ts, _ := NewTimestamp("20211125011947")
 	if err := lfs.Remove(file, ts); err != nil {
