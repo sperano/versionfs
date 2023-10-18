@@ -1,6 +1,10 @@
 package localfs
 
-import "time"
+import (
+	"time"
+)
+
+// TODO consider using Carbon library for time stuff
 
 const (
 	// default timestamp format
@@ -46,16 +50,16 @@ func NewTimestamp(tm string) (Timestamp, error) {
 	return Timestamp{t}, nil
 }
 
+func NewTimestampSimple(tm string) (Timestamp, error) {
+	t, err := time.Parse(tsSimpleDateFormat, tm)
+	if err != nil {
+		return Timestamp{}, err
+	}
+	return Timestamp{t}, nil
+}
+
 //func FromShortTime(tm time.Time) *Timestamp {
 //	return &Timestamp{time: time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, tm.Location())}
-//}
-
-//func FromShortString(tm string) (*Timestamp, error) {
-//	t, err := time.Parse(tsSimpleDateFormat, tm)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &Timestamp{time: t}, nil
 //}
 
 //func ToYearString(time time.Time) string {
