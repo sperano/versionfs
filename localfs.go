@@ -71,6 +71,14 @@ func (l *LocalFS) New(ftype FileType, args ...any) File {
 
 var ErrNoVersions = errors.New("no version found")
 
+func (l *LocalFS) HasSome(file File) (bool, error) {
+	versions, err := l.Versions(file)
+	if err != nil {
+		return false, err
+	}
+	return len(versions) > 0, nil
+}
+
 func (l *LocalFS) LastVersion(file File) (Timestamp, error) {
 	versions, err := l.Versions(file)
 	if err != nil {
