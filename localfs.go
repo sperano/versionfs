@@ -1,6 +1,7 @@
 package localfs
 
 import (
+	"errors"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"os"
@@ -66,6 +67,27 @@ func (l *LocalFS) New(ftype FileType, args ...any) File {
 		panic(fmt.Errorf("file type %d not registered", ftype))
 	}
 	return c(args...)
+}
+
+var ErrNoVersions = errors.New("no version found")
+
+func (l *LocalFS) HasSome(file File) (bool, error) {
+	versions, err := l.Versions(file)
+	if err != nil {
+		return false, err
+	}
+	return len(versions) > 0, nil
+}
+
+func (l *LocalFS) LastVersion(file File) (Timestamp, error) {
+	versions, err := l.Versions(file)
+	if err != nil {
+		return Timestamp{}, err
+	}
+	if len(versions) == 0 {
+		return Timestamp{}, ErrNoVersions
+	}
+	return versions[0], nil
 }
 
 func (l *LocalFS) Versions(file File) ([]Timestamp, error) {
