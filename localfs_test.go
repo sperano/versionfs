@@ -121,6 +121,27 @@ func TestLocalFS_Versions_Error(t *testing.T) {
 	assert.Equal(t, "open test-data/missing/2023/league: no such file or directory", err.Error())
 }
 
+func TestLocalFS_LastVersion(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+	version, err := lfs.LastVersion(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "20211218030527", version.String())
+}
+
+func TestLocalFS_LastVersion_Error(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	lfs.RootPath = "./test-data/missing"
+	file := lfs.New(LeagueFileType, 2023)
+	version, err := lfs.LastVersion(file)
+	assert.Zero(t, version)
+	assert.Equal(t, "open test-data/missing/2023/league: no such file or directory", err.Error())
+}
+
 func TestLocalFS_Write(t *testing.T) {
 	t.Parallel()
 	dir, lfs := newTmpLocalFS(t)
