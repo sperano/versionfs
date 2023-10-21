@@ -42,7 +42,7 @@ func (l *LocalFS) RegisterFileType(ftype FileType, constructor Constructor) {
 }
 
 func (l *LocalFS) Write(file File, data []byte) (Timestamp, error) {
-	log.Info().Msgf("Writing file %s/%s.?.%s", file.Dir(), file.Name(), file.Ext())
+	log.Debug().Msgf("Writing file %s/%s.%s.?", file.Dir(), file.Name(), file.Ext())
 	if err := os.MkdirAll(path_.Join(l.RootPath, file.Dir()), 0755); err != nil {
 		return Timestamp{}, err
 	}
@@ -52,12 +52,12 @@ func (l *LocalFS) Write(file File, data []byte) (Timestamp, error) {
 }
 
 func (l *LocalFS) Read(file File, ts Timestamp) ([]byte, error) {
-	log.Info().Msgf("Reading file %s/%s.%s.%s", file.Dir(), file.Name(), ts, file.Ext())
+	log.Debug().Msgf("Reading file %s/%s.%s.%s", file.Dir(), file.Name(), file.Ext(), ts)
 	return os.ReadFile(path_.Join(l.RootPath, Path(file, ts)))
 }
 
 func (l *LocalFS) Remove(file File, ts Timestamp) error {
-	log.Info().Msgf("remove file %s/%s.%s.%s", file.Dir(), file.Name(), ts, file.Ext())
+	log.Debug().Msgf("remove file %s/%s.%s.%s", file.Dir(), file.Name(), file.Ext(), ts)
 	return os.Remove(path_.Join(l.RootPath, Path(file, ts)))
 }
 
