@@ -52,7 +52,7 @@ func (l *LocalFS) Write(file File, data []byte) (Timestamp, error) {
 }
 
 func (l *LocalFS) Read(file File, ts Timestamp) ([]byte, error) {
-	log.Info().Msgf("read file %s/%s.%s.%s", file.Dir(), file.Name(), ts, file.Ext())
+	log.Info().Msgf("Reading file %s/%s.%s.%s", file.Dir(), file.Name(), ts, file.Ext())
 	return os.ReadFile(path_.Join(l.RootPath, Path(file, ts)))
 }
 
