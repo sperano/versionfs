@@ -71,6 +71,8 @@ func newTmpLocalFS(t *testing.T) (string, *LocalFS) {
 	return dir, lfs
 }
 
+// Test the new method - It has two registered types (league and roster), make sure the correct file object
+// is created. it should panic if we create a type that doesn't exists
 func TestLocalFS_New(t *testing.T) {
 	t.Parallel()
 	lfs := newTestLocalFS()
@@ -84,11 +86,11 @@ func TestLocalFS_New(t *testing.T) {
 	assert.Panics(t, func() { lfs.New(99) }, "The code did not panic")
 }
 
+// should read a file correctly - sample file is in test-data
 func TestLocalFS_Read(t *testing.T) {
 	t.Parallel()
 	lfs := newTestLocalFS()
 	file := lfs.New(LeagueFileType, 2023)
-	//file := newLeague(2023)
 	ts, _ := NewTimestamp("20211125011947")
 	data, err := lfs.Read(file, ts)
 	if err != nil {
@@ -120,6 +122,30 @@ func TestLocalFS_Versions_Error(t *testing.T) {
 	assert.Nil(t, versions)
 	assert.Equal(t, "open test-data/missing/2023/league: no such file or directory", err.Error())
 }
+
+// re-use the same file as the Versions test, we know it should return true
+func TestLocalFS_HasSome(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+	ok, err := lfs.HasSome(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.True(t, ok)
+}
+
+// use a year that we don't have in test data, it should be false
+//func TestLocalFS_DoesntHaveSome(t *testing.T) {
+//	t.Parallel()
+//	lfs := newTestLocalFS()
+//	file := lfs.New(LeagueFileType, 2000)
+//	ok, err := lfs.HasSome(file)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	assert.False(t, ok)
+//}
 
 func TestLocalFS_LastVersion(t *testing.T) {
 	t.Parallel()
@@ -155,9 +181,16 @@ func TestLocalFS_Write(t *testing.T) {
 	assert.Equal(t, "new hello world", string(data))
 }
 
-//func TestLocalFS_Write_Error(t *testing.T) {
-//	t.Parallel()
-//}
+// let's write on a path that is not writable
+func TestLocalFS_Write_Error(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	lfs.RootPath = "/dev/null/"
+	file := lfs.New(LeagueFileType, 2023)
+	ts, err := lfs.Write(file, []byte("new hello world"))
+	assert.Zero(t, ts)
+	assert.Equal(t, "mkdir /dev/null: not a directory", err.Error())
+}
 
 func TestLocalFS_Remove(t *testing.T) {
 	t.Parallel()

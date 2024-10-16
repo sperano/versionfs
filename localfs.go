@@ -43,7 +43,7 @@ func (l *LocalFS) RegisterFileType(ftype FileType, constructor Constructor) {
 
 func (l *LocalFS) Write(file File, data []byte) (Timestamp, error) {
 	log.Debug().Msgf("Writing file %s/%s.%s.?", file.Dir(), file.Name(), file.Ext())
-	if err := os.MkdirAll(path_.Join(l.RootPath, file.Dir()), 0755); err != nil {
+	if err := l.MkdirAll(file.Dir(), 0755); err != nil {
 		return Timestamp{}, err
 	}
 	ts := NewFromTime(time.Now())
