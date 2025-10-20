@@ -34,7 +34,7 @@ type FileType int
 // File defines the interface that all file types must implement.
 // It specifies the directory, base name, and extension for a file.
 type File interface {
-	// Dir returns the directory path relative to the LocalFS root.
+	// Dir returns the directory path relative to the VersionFS root.
 	// Example: "2023/league" or "catalog"
 	Dir() string
 
@@ -60,23 +60,23 @@ func Path(file File, version Timestamp) string {
 // It accepts variadic arguments to support parameterized file types.
 type Constructor func(args ...any) File
 
-// LocalFS manages versioned files in a local filesystem.
+// VersionFS manages versioned files in a local filesystem.
 // It maintains a root path and a registry of file type constructors.
-type LocalFS struct {
+type VersionFS struct {
 	// RootPath is the base directory for all file operations.
 	RootPath string
 	// constructors maps FileType to their constructor functions.
 	constructors map[FileType]Constructor
 }
 
-// New creates a new LocalFS instance with the specified root path.
+// New creates a new VersionFS instance with the specified root path.
 // The root path is where all files will be stored.
 //
 // Example:
 //
-//	lfs := localfs.New("./data")
-func New(rootPath string) *LocalFS {
-	return &LocalFS{
+//	vfs := versionfs.New("./data")
+func New(rootPath string) *VersionFS {
+	return &VersionFS{
 		RootPath:     rootPath,
 		constructors: make(map[FileType]Constructor),
 	}
@@ -90,8 +90,8 @@ func New(rootPath string) *LocalFS {
 //	lfs.RegisterFileType(LeagueFileType, func(args ...any) localfs.File {
 //	    return LeagueFile{season: args[0].(int)}
 //	})
-func (l *LocalFS) RegisterFileType(ftype FileType, constructor Constructor) {
-	l.constructors[ftype] = constructor
+func (v *VersionFS) RegisterFileType(ftype FileType, constructor Constructor) {
+	v.constructors[ftype] = constructor
 }
 
 // Write writes data to a file and returns the generated timestamp.
@@ -105,14 +105,14 @@ func (l *LocalFS) RegisterFileType(ftype FileType, constructor Constructor) {
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Created version: %s\n", ts)
-func (l *LocalFS) Write(file File, data []byte) (Timestamp, error) {
+func (v *VersionFS) Write(file File, data []byte) (Timestamp, error) {
 	log.Debug().Msgf("Writing file %s/%s.%s.?", file.Dir(), file.Name(), file.Ext())
-	if err := l.MkdirAll(file.Dir(), 0755); err != nil {
+	if err := v.MkdirAll(file.Dir(), 0755); err != nil {
 		return Timestamp{}, err
 	}
 	ts := NewFromTime(time.Now())
 	filepath := Path(file, ts)
-	return ts, os.WriteFile(path_.Join(l.RootPath, filepath), data, 0644)
+	return ts, os.WriteFile(path_.Join(v.RootPath, filepath), data, 0644)
 }
 
 // Read reads a specific version of a file identified by its timestamp.
@@ -124,9 +124,9 @@ func (l *LocalFS) Write(file File, data []byte) (Timestamp, error) {
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func (l *LocalFS) Read(file File, ts Timestamp) ([]byte, error) {
+func (v *VersionFS) Read(file File, ts Timestamp) ([]byte, error) {
 	log.Debug().Msgf("Reading file %s/%s.%s.%s", file.Dir(), file.Name(), file.Ext(), ts)
-	return os.ReadFile(path_.Join(l.RootPath, Path(file, ts)))
+	return os.ReadFile(path_.Join(v.RootPath, Path(file, ts)))
 }
 
 // Remove deletes a specific version of a file identified by its timestamp.
@@ -138,9 +138,9 @@ func (l *LocalFS) Read(file File, ts Timestamp) ([]byte, error) {
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func (l *LocalFS) Remove(file File, ts Timestamp) error {
+func (v *VersionFS) Remove(file File, ts Timestamp) error {
 	log.Debug().Msgf("remove file %s/%s.%s.%s", file.Dir(), file.Name(), file.Ext(), ts)
-	return os.Remove(path_.Join(l.RootPath, Path(file, ts)))
+	return os.Remove(path_.Join(v.RootPath, Path(file, ts)))
 }
 
 // New creates a new File instance using a registered constructor.
@@ -149,8 +149,8 @@ func (l *LocalFS) Remove(file File, ts Timestamp) error {
 // Example:
 //
 //	file := lfs.New(LeagueFileType, 2023)
-func (l *LocalFS) New(ftype FileType, args ...any) File {
-	c, ok := l.constructors[ftype]
+func (v *VersionFS) New(ftype FileType, args ...any) File {
+	c, ok := v.constructors[ftype]
 	if !ok {
 		panic(fmt.Errorf("file type %d not registered", ftype))
 	}
@@ -172,8 +172,8 @@ var ErrNoVersions = errors.New("no version found")
 //	if exists {
 //	    fmt.Println("File has versions")
 //	}
-func (l *LocalFS) HasSome(file File) (bool, error) {
-	versions, err := l.Versions(file)
+func (v *VersionFS) HasSome(file File) (bool, error) {
+	versions, err := v.Versions(file)
 	if err != nil {
 		return false, err
 	}
@@ -192,8 +192,8 @@ func (l *LocalFS) HasSome(file File) (bool, error) {
 //	} else if err != nil {
 //	    log.Fatal(err)
 //	}
-func (l *LocalFS) LastVersion(file File) (Timestamp, error) {
-	versions, err := l.Versions(file)
+func (v *VersionFS) LastVersion(file File) (Timestamp, error) {
+	versions, err := v.Versions(file)
 	if err != nil {
 		return Timestamp{}, err
 	}
@@ -216,8 +216,8 @@ func (l *LocalFS) LastVersion(file File) (Timestamp, error) {
 //	for _, ts := range versions {
 //	    fmt.Printf("Version: %s\n", ts)
 //	}
-func (l *LocalFS) Versions(file File) ([]Timestamp, error) {
-	entries, err := os.ReadDir(path_.Join(l.RootPath, file.Dir()))
+func (v *VersionFS) Versions(file File) ([]Timestamp, error) {
+	entries, err := os.ReadDir(path_.Join(v.RootPath, file.Dir()))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []Timestamp{}, nil
@@ -264,7 +264,7 @@ func (l *LocalFS) Versions(file File) ([]Timestamp, error) {
 //	} else {
 //	    fmt.Printf("Found version: %s\n", ts)
 //	}
-func (l *LocalFS) Detect(filename string, file File) (Timestamp, error) {
+func (v *VersionFS) Detect(filename string, file File) (Timestamp, error) {
 	fname := file.Name()
 	fext := file.Ext()
 
@@ -321,8 +321,8 @@ func (l *LocalFS) Detect(filename string, file File) (Timestamp, error) {
 //	    data, _ := lfs.Read(file, ts)
 //	    // process data...
 //	}
-func (l *LocalFS) Find(dir string, file File) ([]Timestamp, error) {
-	entries, err := os.ReadDir(path_.Join(l.RootPath, dir))
+func (v *VersionFS) Find(dir string, file File) ([]Timestamp, error) {
+	entries, err := os.ReadDir(path_.Join(v.RootPath, dir))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []Timestamp{}, nil
@@ -398,8 +398,8 @@ func (l *LocalFS) Find(dir string, file File) ([]Timestamp, error) {
 //	if exists {
 //	    fmt.Println("Directory exists")
 //	}
-func (l *LocalFS) PathExists(path string) (bool, error) {
-	_, err := os.Stat(path_.Join(l.RootPath, path))
+func (v *VersionFS) PathExists(path string) (bool, error) {
+	_, err := os.Stat(path_.Join(v.RootPath, path))
 	if err == nil {
 		return true, nil
 	}
@@ -410,7 +410,7 @@ func (l *LocalFS) PathExists(path string) (bool, error) {
 }
 
 // MkdirAll creates a directory and all necessary parent directories.
-// The path is relative to the LocalFS root path.
+// The path is relative to the VersionFS root path.
 // Does nothing if the directory already exists.
 //
 // Example:
@@ -419,6 +419,6 @@ func (l *LocalFS) PathExists(path string) (bool, error) {
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func (l *LocalFS) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path_.Join(l.RootPath, path), perm)
+func (v *VersionFS) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path_.Join(v.RootPath, path), perm)
 }
