@@ -87,7 +87,7 @@ func New(rootPath string) *VersionFS {
 //
 // Example:
 //
-//	lfs.RegisterFileType(LeagueFileType, func(args ...any) localfs.File {
+//	vfs.RegisterFileType(LeagueFileType, func(args ...any) versionfs.File {
 //	    return LeagueFile{season: args[0].(int)}
 //	})
 func (v *VersionFS) RegisterFileType(ftype FileType, constructor Constructor) {
@@ -100,7 +100,7 @@ func (v *VersionFS) RegisterFileType(ftype FileType, constructor Constructor) {
 //
 // Example:
 //
-//	ts, err := lfs.Write(file, []byte("data"))
+//	ts, err := vfs.Write(file, []byte("data"))
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -120,7 +120,7 @@ func (v *VersionFS) Write(file File, data []byte) (Timestamp, error) {
 //
 // Example:
 //
-//	data, err := lfs.Read(file, timestamp)
+//	data, err := vfs.Read(file, timestamp)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -134,7 +134,7 @@ func (v *VersionFS) Read(file File, ts Timestamp) ([]byte, error) {
 //
 // Example:
 //
-//	err := lfs.Remove(file, timestamp)
+//	err := vfs.Remove(file, timestamp)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -148,7 +148,7 @@ func (v *VersionFS) Remove(file File, ts Timestamp) error {
 //
 // Example:
 //
-//	file := lfs.New(LeagueFileType, 2023)
+//	file := vfs.New(LeagueFileType, 2023)
 func (v *VersionFS) New(ftype FileType, args ...any) File {
 	c, ok := v.constructors[ftype]
 	if !ok {
@@ -165,7 +165,7 @@ var ErrNoVersions = errors.New("no version found")
 //
 // Example:
 //
-//	exists, err := lfs.HasSome(file)
+//	exists, err := vfs.HasSome(file)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -186,8 +186,8 @@ func (v *VersionFS) HasSome(file File) (bool, error) {
 //
 // Example:
 //
-//	latest, err := lfs.LastVersion(file)
-//	if err == localfs.ErrNoVersions {
+//	latest, err := vfs.LastVersion(file)
+//	if err == versionfs.ErrNoVersions {
 //	    fmt.Println("No versions found")
 //	} else if err != nil {
 //	    log.Fatal(err)
@@ -209,7 +209,7 @@ func (v *VersionFS) LastVersion(file File) (Timestamp, error) {
 //
 // Example:
 //
-//	versions, err := lfs.Versions(file)
+//	versions, err := vfs.Versions(file)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -258,7 +258,7 @@ func (v *VersionFS) Versions(file File) ([]Timestamp, error) {
 //
 // Example:
 //
-//	ts, err := lfs.Detect("league.json.20231019140523", file)
+//	ts, err := vfs.Detect("league.json.20231019140523", file)
 //	if err != nil {
 //	    fmt.Println("Not a league file")
 //	} else {
@@ -312,13 +312,13 @@ func (v *VersionFS) Detect(filename string, file File) (Timestamp, error) {
 //
 // Example:
 //
-//	timestamps, err := lfs.Find("2023/league", file)
+//	timestamps, err := vfs.Find("2023/league", file)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //	for _, ts := range timestamps {
 //	    fmt.Printf("Found version: %s\n", ts)
-//	    data, _ := lfs.Read(file, ts)
+//	    data, _ := vfs.Read(file, ts)
 //	    // process data...
 //	}
 func (v *VersionFS) Find(dir string, file File) ([]Timestamp, error) {
@@ -391,7 +391,7 @@ func (v *VersionFS) Find(dir string, file File) ([]Timestamp, error) {
 //
 // Example:
 //
-//	exists, err := lfs.PathExists("2023/league")
+//	exists, err := vfs.PathExists("2023/league")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -415,7 +415,7 @@ func (v *VersionFS) PathExists(path string) (bool, error) {
 //
 // Example:
 //
-//	err := lfs.MkdirAll("2023/league", 0755)
+//	err := vfs.MkdirAll("2023/league", 0755)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}

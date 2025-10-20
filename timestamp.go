@@ -57,7 +57,7 @@ func (t Timestamp) SimpleDateAsTime() time.Time {
 //
 // Example:
 //
-//	ts := localfs.NewFromTime(time.Now())
+//	ts := versionfs.NewFromTime(time.Now())
 func NewFromTime(tm time.Time) Timestamp {
 	return Timestamp{time: tm}
 }
@@ -67,7 +67,7 @@ func NewFromTime(tm time.Time) Timestamp {
 //
 // Example:
 //
-//	ts, err := localfs.NewTimestamp("20231019140523")
+//	ts, err := versionfs.NewTimestamp("20231019140523")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -85,7 +85,7 @@ func NewTimestamp(tm string) (Timestamp, error) {
 //
 // Example:
 //
-//	ts, err := localfs.NewTimestampSimple("2023-10-19")
+//	ts, err := versionfs.NewTimestampSimple("2023-10-19")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
