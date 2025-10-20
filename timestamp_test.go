@@ -1,4 +1,4 @@
-package localfs
+package versionfs
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -64,6 +64,29 @@ func TestTimestamp_NewErr(t *testing.T) {
 	t.Parallel()
 	_, err := NewTimestamp("foo")
 	assert.Equal(t, "parsing time \"foo\" as \"20060102150405\": cannot parse \"foo\" as \"2006\"", err.Error())
+}
+
+func TestTimestamp_NewSimple(t *testing.T) {
+	t.Parallel()
+	ts, err := NewTimestampSimple("2022-10-19")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "2022-10-19", ts.SimpleDateString())
+	tm := ts.Time()
+	assert.Equal(t, 2022, tm.Year())
+	assert.Equal(t, time.October, tm.Month())
+	assert.Equal(t, 19, tm.Day())
+	assert.Equal(t, 0, tm.Hour())
+	assert.Equal(t, 0, tm.Minute())
+	assert.Equal(t, 0, tm.Second())
+}
+
+func TestTimestamp_NewSimpleErr(t *testing.T) {
+	t.Parallel()
+	_, err := NewTimestampSimple("invalid")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "parsing time")
 }
 
 //func TestNewReadableTSFromShortTime(t *testing.T) {
