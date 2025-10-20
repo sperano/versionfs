@@ -3,11 +3,17 @@ package localfs
 import (
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path"
 	"testing"
 )
+
+func init() {
+	// Disable logging during tests
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+}
 
 const (
 	LeagueFileType FileType = iota
@@ -113,14 +119,14 @@ func TestLocalFS_Versions(t *testing.T) {
 	assert.Equal(t, "20211125011946", versions[2].String())
 }
 
-func TestLocalFS_Versions_Error(t *testing.T) {
+func TestLocalFS_Versions_MissingDir(t *testing.T) {
 	t.Parallel()
 	lfs := newTestLocalFS()
 	lfs.RootPath = "./test-data/missing"
 	file := lfs.New(LeagueFileType, 2023)
 	versions, err := lfs.Versions(file)
-	assert.Nil(t, versions)
-	assert.Equal(t, "open test-data/missing/2023/league: no such file or directory", err.Error())
+	assert.Nil(t, err)
+	assert.Equal(t, []Timestamp{}, versions)
 }
 
 // re-use the same file as the Versions test, we know it should return true
@@ -158,14 +164,14 @@ func TestLocalFS_LastVersion(t *testing.T) {
 	assert.Equal(t, "20211218030527", version.String())
 }
 
-func TestLocalFS_LastVersion_Error(t *testing.T) {
+func TestLocalFS_LastVersion_MissingDir(t *testing.T) {
 	t.Parallel()
 	lfs := newTestLocalFS()
 	lfs.RootPath = "./test-data/missing"
 	file := lfs.New(LeagueFileType, 2023)
 	version, err := lfs.LastVersion(file)
 	assert.Zero(t, version)
-	assert.Equal(t, "open test-data/missing/2023/league: no such file or directory", err.Error())
+	assert.Equal(t, ErrNoVersions, err)
 }
 
 func TestLocalFS_Write(t *testing.T) {
@@ -221,4 +227,272 @@ func TestLocalFS_Remove_Err(t *testing.T) {
 	if err := lfs.Remove(file, ts); err != nil {
 		assert.True(t, errors.Is(err, os.ErrNotExist))
 	}
+}
+
+func TestLocalFS_PathExists(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	// Test with a path that exists
+	exists, err := lfs.PathExists("2023/league")
+	assert.Nil(t, err)
+	assert.True(t, exists, "Expected existing path to return true")
+}
+
+func TestLocalFS_PathDoesNotExist(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	// Test with a path that does not exist
+	exists, err := lfs.PathExists("2023/nonexistent")
+	assert.Nil(t, err)
+	assert.False(t, exists, "Expected non-existing path to return false")
+}
+
+func TestLocalFS_DoesntHaveSome(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+	file := lfs.New(LeagueFileType, 2023)
+	ok, err := lfs.HasSome(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.False(t, ok)
+}
+
+func TestLocalFS_HasSome_MissingDir(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	lfs.RootPath = "./test-data/missing"
+	file := lfs.New(LeagueFileType, 2023)
+	ok, err := lfs.HasSome(file)
+	assert.False(t, ok)
+	assert.Nil(t, err)
+}
+
+func TestLocalFS_LastVersion_NoVersions(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+	file := lfs.New(LeagueFileType, 2023)
+	version, err := lfs.LastVersion(file)
+	assert.Zero(t, version)
+	assert.Equal(t, ErrNoVersions, err)
+}
+
+func TestLocalFS_Find(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+	timestamps, err := lfs.Find("2023/league", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 3, len(timestamps))
+	assert.Equal(t, "20211218030527", timestamps[0].String())
+	assert.Equal(t, "20211125011947", timestamps[1].String())
+	assert.Equal(t, "20211125011946", timestamps[2].String())
+}
+
+func TestLocalFS_Find_NoMatches(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+	if err := lfs.MkdirAll("2023/league", 0755); err != nil {
+		t.Fatal(err)
+	}
+	file := lfs.New(LeagueFileType, 2023)
+	timestamps, err := lfs.Find("2023/league", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 0, len(timestamps))
+}
+
+func TestLocalFS_Find_MissingDir(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	lfs.RootPath = "./test-data/missing"
+	file := lfs.New(LeagueFileType, 2023)
+	timestamps, err := lfs.Find("2023/league", file)
+	assert.Nil(t, err)
+	assert.Equal(t, []Timestamp{}, timestamps)
+}
+
+func TestLocalFS_Find_WrongExtension(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Create a directory with files
+	if err := lfs.MkdirAll("2023/league", 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a file with .txt extension
+	ts1, err := lfs.Write(file, []byte("test content 1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file with wrong extension (.json instead of .txt)
+	wrongFile := path.Join(lfs.RootPath, "2023/league", fmt.Sprintf("league.json.%s", ts1.String()))
+	if err := os.WriteFile(wrongFile, []byte("wrong"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find should only return the .txt file
+	timestamps, err := lfs.Find("2023/league", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(timestamps))
+	assert.Equal(t, ts1.String(), timestamps[0].String())
+}
+
+func TestLocalFS_Find_MultipleFiles(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	lfs.RegisterFileType(RosterFileType, func(args ...any) File {
+		return fileRoster{season: args[0].(int), teamID: args[1].(int), date: args[2].(string)}
+	})
+
+	// Create league files
+	leagueFile := lfs.New(LeagueFileType, 2023)
+	ts1, err := lfs.Write(leagueFile, []byte("league 1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create roster files in the same directory
+	if err := lfs.MkdirAll("2023/league", 0755); err != nil {
+		t.Fatal(err)
+	}
+	rosterPath := path.Join(lfs.RootPath, "2023/league", fmt.Sprintf("roster-1-2023-10-19.json.%s", ts1.String()))
+	if err := os.WriteFile(rosterPath, []byte("roster"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find should only return league files, not roster files
+	timestamps, err := lfs.Find("2023/league", leagueFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(timestamps))
+	assert.Equal(t, ts1.String(), timestamps[0].String())
+}
+
+func TestLocalFS_Detect(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Valid filename
+	ts, err := lfs.Detect("league.txt.20211125011947", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "20211125011947", ts.String())
+}
+
+func TestLocalFS_Detect_MultiPartExtension(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	// Register a file type with multi-part extension (csv.gz)
+	const ThemesFileType FileType = 99
+	lfs.RegisterFileType(ThemesFileType, func(args ...any) File {
+		return &fileThemes{}
+	})
+
+	file := lfs.New(ThemesFileType)
+	ts, err := lfs.Detect("themes.csv.gz.20211125011947", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "20211125011947", ts.String())
+}
+
+func TestLocalFS_Detect_WrongName(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Wrong name
+	_, err := lfs.Detect("roster.txt.20211125011947", file)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "does not match file name")
+}
+
+func TestLocalFS_Detect_WrongExtension(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Wrong extension
+	_, err := lfs.Detect("league.json.20211125011947", file)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "has extension")
+}
+
+func TestLocalFS_Detect_InvalidTimestamp(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Invalid timestamp
+	_, err := lfs.Detect("league.txt.invalid", file)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid timestamp")
+}
+
+func TestLocalFS_Detect_MissingDot(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Missing dot after name
+	_, err := lfs.Detect("leaguetxt20211125011947", file)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "expected dot after name")
+}
+
+func TestLocalFS_Detect_MissingExtension(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Missing extension (only timestamp)
+	_, err := lfs.Detect("league.20211125011947", file)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "expected ext.timestamp")
+}
+
+func TestLocalFS_Detect_EmptyAfterName(t *testing.T) {
+	t.Parallel()
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Just the name, nothing after
+	_, err := lfs.Detect("league", file)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "expected dot after name")
+}
+
+// Helper type for multi-part extension testing
+type fileThemes struct{}
+
+func (f fileThemes) Dir() string {
+	return "catalog"
+}
+
+func (f fileThemes) Name() string {
+	return "themes"
+}
+
+func (f fileThemes) Ext() string {
+	return "csv.gz"
 }
