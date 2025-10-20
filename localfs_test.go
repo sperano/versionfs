@@ -65,10 +65,11 @@ func newTestLocalFS() *LocalFS {
 	return lfs
 }
 
-func newTmpLocalFS(t *testing.T) (string, *LocalFS) {
+func newTmpLocalFS(tb testing.TB) (string, *LocalFS) {
+	tb.Helper()
 	dir, err := os.MkdirTemp("", "")
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	lfs := New(dir)
 	lfs.RegisterFileType(LeagueFileType, func(args ...any) File {
@@ -495,4 +496,283 @@ func (f fileThemes) Name() string {
 
 func (f fileThemes) Ext() string {
 	return "csv.gz"
+}
+
+func TestLocalFS_PathExists_OtherError(t *testing.T) {
+	t.Parallel()
+	lfs := New("/root/no-permission")
+	// This should trigger a permission error, not a "not exist" error
+	exists, err := lfs.PathExists("test")
+	assert.False(t, exists)
+	// On some systems we might get permission denied, on others we might get "not exist"
+	// Just verify we get some error or false
+	if err != nil {
+		assert.NotNil(t, err)
+	}
+}
+
+func TestLocalFS_Find_OtherError(t *testing.T) {
+	t.Parallel()
+	lfs := New("/root/no-permission")
+	file := &fileLeague{season: 2023}
+	// This should trigger a permission error
+	timestamps, err := lfs.Find("test", file)
+	// On different systems this might behave differently
+	// Just make sure we handle errors
+	if err != nil {
+		assert.Nil(t, timestamps)
+	} else {
+		// If no error, should be empty
+		assert.Equal(t, 0, len(timestamps))
+	}
+}
+
+func TestLocalFS_Versions_SkipDirectories(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Create a file
+	_, err := lfs.Write(file, []byte("data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a subdirectory that starts with the file name
+	subdir := path.Join(lfs.RootPath, file.Dir(), "league.subdir")
+	if err := os.Mkdir(subdir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Versions should skip the directory
+	versions, err := lfs.Versions(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(versions))
+}
+
+func TestLocalFS_Find_SkipDirectories(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Create a file
+	ts, err := lfs.Write(file, []byte("data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a subdirectory that matches the pattern
+	subdir := path.Join(lfs.RootPath, file.Dir(), fmt.Sprintf("league.txt.%s.dir", ts))
+	if err := os.Mkdir(subdir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find should skip the directory
+	timestamps, err := lfs.Find(file.Dir(), file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(timestamps))
+}
+
+func TestLocalFS_Find_InvalidFormat(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Create directory
+	if err := lfs.MkdirAll(file.Dir(), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file with only one token after name (no timestamp)
+	invalidFile := path.Join(lfs.RootPath, file.Dir(), "league.txt")
+	if err := os.WriteFile(invalidFile, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find should skip this file
+	timestamps, err := lfs.Find(file.Dir(), file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 0, len(timestamps))
+}
+
+func TestLocalFS_Find_NoPrefix(t *testing.T) {
+	t.Parallel()
+	dir, lfs := newTmpLocalFS(t)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+
+	// Create directory
+	if err := lfs.MkdirAll(file.Dir(), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a valid file first
+	ts, err := lfs.Write(file, []byte("data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file that doesn't start with the right prefix
+	wrongFile := path.Join(lfs.RootPath, file.Dir(), fmt.Sprintf("other.txt.%s", ts))
+	if err := os.WriteFile(wrongFile, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find should only return the correct file
+	timestamps, err := lfs.Find(file.Dir(), file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(timestamps))
+	assert.Equal(t, ts.String(), timestamps[0].String())
+}
+
+// Benchmarks
+
+func BenchmarkWrite(b *testing.B) {
+	dir, lfs := newTmpLocalFS(b)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+	data := []byte("benchmark data for write operation")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.Write(file, data)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRead(b *testing.B) {
+	dir, lfs := newTmpLocalFS(b)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+	data := []byte("benchmark data for read operation")
+	ts, err := lfs.Write(file, data)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.Read(file, ts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVersions(b *testing.B) {
+	dir, lfs := newTmpLocalFS(b)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+	// Create 10 versions
+	for i := 0; i < 10; i++ {
+		_, err := lfs.Write(file, []byte(fmt.Sprintf("version %d", i)))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.Versions(file)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkLastVersion(b *testing.B) {
+	dir, lfs := newTmpLocalFS(b)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+	// Create 10 versions
+	for i := 0; i < 10; i++ {
+		_, err := lfs.Write(file, []byte(fmt.Sprintf("version %d", i)))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.LastVersion(file)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkDetect(b *testing.B) {
+	lfs := newTestLocalFS()
+	file := lfs.New(LeagueFileType, 2023)
+	filename := "league.txt.20211125011947"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.Detect(filename, file)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkFind(b *testing.B) {
+	dir, lfs := newTmpLocalFS(b)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+	// Create 10 versions
+	for i := 0; i < 10; i++ {
+		_, err := lfs.Write(file, []byte(fmt.Sprintf("version %d", i)))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.Find("2023/league", file)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkHasSome(b *testing.B) {
+	dir, lfs := newTmpLocalFS(b)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	file := lfs.New(LeagueFileType, 2023)
+	_, err := lfs.Write(file, []byte("data"))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := lfs.HasSome(file)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

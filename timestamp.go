@@ -96,11 +96,3 @@ func NewTimestampSimple(tm string) (Timestamp, error) {
 	}
 	return Timestamp{t}, nil
 }
-
-//func FromShortTime(tm time.Time) *Timestamp {
-//	return &Timestamp{time: time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, tm.Location())}
-//}
-
-//func ToYearString(time time.Time) string {
-//	return FromShortTime(time).ShortString()
-//}
