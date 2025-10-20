@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/ericsperano/localfs"
+	"github.com/sperano/versionfs"
 )
 
 // Define file types
 const (
-	LeagueFileType localfs.FileType = iota
+	LeagueFileType versionfs.FileType = iota
 	RosterFileType
 )
 
@@ -52,7 +52,7 @@ func (f RosterFile) Ext() string {
 
 func main() {
 	// Create a temporary directory for this example
-	tmpDir, err := os.MkdirTemp("", "localfs-detect-find-*")
+	tmpDir, err := os.MkdirTemp("", "versionfs-detect-find-*")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,30 +60,30 @@ func main() {
 
 	fmt.Printf("Using directory: %s\n\n", tmpDir)
 
-	// Create LocalFS instance
-	lfs := localfs.New(tmpDir)
+	// Create VersionFS instance
+	vfs := versionfs.New(tmpDir)
 
 	// Register file types
-	lfs.RegisterFileType(LeagueFileType, func(args ...any) localfs.File {
+	vfs.RegisterFileType(LeagueFileType, func(args ...any) versionfs.File {
 		return LeagueFile{season: args[0].(int)}
 	})
-	lfs.RegisterFileType(RosterFileType, func(args ...any) localfs.File {
+	vfs.RegisterFileType(RosterFileType, func(args ...any) versionfs.File {
 		return RosterFile{season: args[0].(int), teamID: args[1].(int)}
 	})
 
 	// Create some league files
 	fmt.Println("Creating league files...")
-	leagueFile := lfs.New(LeagueFileType, 2023)
-	ts1, _ := lfs.Write(leagueFile, []byte(`{"name": "Premier League"}`))
-	ts2, _ := lfs.Write(leagueFile, []byte(`{"name": "Premier League", "updated": true}`))
+	leagueFile := vfs.New(LeagueFileType, 2023)
+	ts1, _ := vfs.Write(leagueFile, []byte(`{"name": "Premier League"}`))
+	ts2, _ := vfs.Write(leagueFile, []byte(`{"name": "Premier League", "updated": true}`))
 	fmt.Printf("Created 2 league file versions: %s, %s\n", ts1, ts2)
 
 	// Create some roster files in the same season
 	fmt.Println("\nCreating roster files...")
-	roster1 := lfs.New(RosterFileType, 2023, 1)
-	roster2 := lfs.New(RosterFileType, 2023, 2)
-	lfs.Write(roster1, []byte(`{"team": 1, "players": ["Player A", "Player B"]}`))
-	lfs.Write(roster2, []byte(`{"team": 2, "players": ["Player C", "Player D"]}`))
+	roster1 := vfs.New(RosterFileType, 2023, 1)
+	roster2 := vfs.New(RosterFileType, 2023, 2)
+	vfs.Write(roster1, []byte(`{"team": 1, "players": ["Player A", "Player B"]}`))
+	vfs.Write(roster2, []byte(`{"team": 2, "players": ["Player C", "Player D"]}`))
 	fmt.Println("Created 2 roster files")
 
 	// Demonstrate Detect functionality
@@ -92,7 +92,7 @@ func main() {
 	// Test valid filename
 	filename := fmt.Sprintf("league.json.%s", ts1)
 	fmt.Printf("\nDetecting filename: %s\n", filename)
-	detectedTS, err := lfs.Detect(filename, leagueFile)
+	detectedTS, err := vfs.Detect(filename, leagueFile)
 	if err != nil {
 		fmt.Printf("❌ Not detected: %v\n", err)
 	} else {
@@ -102,7 +102,7 @@ func main() {
 	// Test invalid filename (wrong name)
 	invalidFilename := fmt.Sprintf("roster-1.json.%s", ts1)
 	fmt.Printf("\nDetecting filename: %s\n", invalidFilename)
-	_, err = lfs.Detect(invalidFilename, leagueFile)
+	_, err = vfs.Detect(invalidFilename, leagueFile)
 	if err != nil {
 		fmt.Printf("❌ Not detected (expected): %v\n", err)
 	}
@@ -110,7 +110,7 @@ func main() {
 	// Test invalid filename (wrong extension)
 	invalidExt := fmt.Sprintf("league.txt.%s", ts1)
 	fmt.Printf("\nDetecting filename: %s\n", invalidExt)
-	_, err = lfs.Detect(invalidExt, leagueFile)
+	_, err = vfs.Detect(invalidExt, leagueFile)
 	if err != nil {
 		fmt.Printf("❌ Not detected (expected): %v\n", err)
 	}
@@ -120,7 +120,7 @@ func main() {
 
 	// Find all league files
 	fmt.Println("\nFinding all league files in '2023/league'...")
-	timestamps, err := lfs.Find("2023/league", leagueFile)
+	timestamps, err := vfs.Find("2023/league", leagueFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -128,13 +128,13 @@ func main() {
 	for i, ts := range timestamps {
 		fmt.Printf("  %d. %s (%s)\n", i+1, ts, ts.LongString())
 		// Read and display the content
-		data, _ := lfs.Read(leagueFile, ts)
+		data, _ := vfs.Read(leagueFile, ts)
 		fmt.Printf("     Content: %s\n", string(data))
 	}
 
 	// Find all roster files
 	fmt.Println("\nFinding all roster files in '2023/rosters'...")
-	roster1Timestamps, err := lfs.Find("2023/rosters", roster1)
+	roster1Timestamps, err := vfs.Find("2023/rosters", roster1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func main() {
 		fmt.Printf("  %d. %s\n", i+1, ts.LongString())
 	}
 
-	roster2Timestamps, err := lfs.Find("2023/rosters", roster2)
+	roster2Timestamps, err := vfs.Find("2023/rosters", roster2)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func main() {
 
 	// Find in non-existent directory
 	fmt.Println("\nFinding in non-existent directory '2024/league'...")
-	emptyResults, err := lfs.Find("2024/league", leagueFile)
+	emptyResults, err := vfs.Find("2024/league", leagueFile)
 	if err != nil {
 		log.Fatal(err)
 	}

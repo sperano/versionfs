@@ -1,4 +1,4 @@
-module github.com/sperano/localfs
+module github.com/sperano/versionfs
 
 go 1.21.1
 

@@ -1,4 +1,4 @@
-// Basic example demonstrating core LocalFS functionality
+// Basic example demonstrating core VersionFS functionality
 package main
 
 import (
@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/ericsperano/localfs"
+	"github.com/sperano/versionfs"
 )
 
 // Define file types
 const (
-	LeagueFileType localfs.FileType = iota
+	LeagueFileType versionfs.FileType = iota
 )
 
 // LeagueFile implements the File interface
@@ -33,7 +33,7 @@ func (f LeagueFile) Ext() string {
 
 func main() {
 	// Create a temporary directory for this example
-	tmpDir, err := os.MkdirTemp("", "localfs-example-*")
+	tmpDir, err := os.MkdirTemp("", "versionfs-example-*")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,20 +41,20 @@ func main() {
 
 	fmt.Printf("Using directory: %s\n\n", tmpDir)
 
-	// Create LocalFS instance
-	lfs := localfs.New(tmpDir)
+	// Create VersionFS instance
+	vfs := versionfs.New(tmpDir)
 
 	// Register the file type
-	lfs.RegisterFileType(LeagueFileType, func(args ...any) localfs.File {
+	vfs.RegisterFileType(LeagueFileType, func(args ...any) versionfs.File {
 		return LeagueFile{season: args[0].(int)}
 	})
 
 	// Create a file
-	file := lfs.New(LeagueFileType, 2023)
+	file := vfs.New(LeagueFileType, 2023)
 
 	// Write data
 	fmt.Println("Writing file...")
-	ts1, err := lfs.Write(file, []byte(`{"name": "Premier League", "teams": 20}`))
+	ts1, err := vfs.Write(file, []byte(`{"name": "Premier League", "teams": 20}`))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func main() {
 
 	// Write another version
 	fmt.Println("\nWriting another version...")
-	ts2, err := lfs.Write(file, []byte(`{"name": "Premier League", "teams": 20, "year": 2023}`))
+	ts2, err := vfs.Write(file, []byte(`{"name": "Premier League", "teams": 20, "year": 2023}`))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func main() {
 
 	// Read a specific version
 	fmt.Println("\nReading first version...")
-	data, err := lfs.Read(file, ts1)
+	data, err := vfs.Read(file, ts1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func main() {
 
 	// List all versions
 	fmt.Println("\nListing all versions...")
-	versions, err := lfs.Versions(file)
+	versions, err := vfs.Versions(file)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func main() {
 
 	// Get the latest version
 	fmt.Println("\nGetting latest version...")
-	latest, err := lfs.LastVersion(file)
+	latest, err := vfs.LastVersion(file)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func main() {
 
 	// Check if file has versions
 	fmt.Println("\nChecking if file has versions...")
-	hasVersions, err := lfs.HasSome(file)
+	hasVersions, err := vfs.HasSome(file)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func main() {
 
 	// Remove a version
 	fmt.Println("\nRemoving first version...")
-	err = lfs.Remove(file, ts1)
+	err = vfs.Remove(file, ts1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func main() {
 
 	// List versions again
 	fmt.Println("\nListing versions after removal...")
-	versions, err = lfs.Versions(file)
+	versions, err = vfs.Versions(file)
 	if err != nil {
 		log.Fatal(err)
 	}

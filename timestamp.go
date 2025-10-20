@@ -1,4 +1,4 @@
-package localfs
+package versionfs
 
 import (
 	"time"

@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/ericsperano/localfs"
+	"github.com/sperano/versionfs"
 )
 
 // Define file types
 const (
-	ThemesFileType localfs.FileType = iota
+	ThemesFileType versionfs.FileType = iota
 	PlayersFileType
 )
 
@@ -49,7 +49,7 @@ func (f PlayersFile) Ext() string {
 
 func main() {
 	// Create a temporary directory for this example
-	tmpDir, err := os.MkdirTemp("", "localfs-multiext-*")
+	tmpDir, err := os.MkdirTemp("", "versionfs-multiext-*")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,28 +57,28 @@ func main() {
 
 	fmt.Printf("Using directory: %s\n\n", tmpDir)
 
-	// Create LocalFS instance
-	lfs := localfs.New(tmpDir)
+	// Create VersionFS instance
+	vfs := versionfs.New(tmpDir)
 
 	// Register file types
-	lfs.RegisterFileType(ThemesFileType, func(args ...any) localfs.File {
+	vfs.RegisterFileType(ThemesFileType, func(args ...any) versionfs.File {
 		return ThemesFile{}
 	})
-	lfs.RegisterFileType(PlayersFileType, func(args ...any) localfs.File {
+	vfs.RegisterFileType(PlayersFileType, func(args ...any) versionfs.File {
 		return PlayersFile{season: args[0].(int)}
 	})
 
 	// Create themes file (csv.gz extension)
 	fmt.Println("Creating themes file with .csv.gz extension...")
-	themesFile := lfs.New(ThemesFileType)
-	ts1, err := lfs.Write(themesFile, []byte("id,name,year\n1,Castle,1978\n2,Space,1979"))
+	themesFile := vfs.New(ThemesFileType)
+	ts1, err := vfs.Write(themesFile, []byte("id,name,year\n1,Castle,1978\n2,Space,1979"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Created: catalog/themes.csv.gz.%s\n", ts1)
 
 	// Create another version
-	ts2, err := lfs.Write(themesFile, []byte("id,name,year\n1,Castle,1978\n2,Space,1979\n3,Pirates,1989"))
+	ts2, err := vfs.Write(themesFile, []byte("id,name,year\n1,Castle,1978\n2,Space,1979\n3,Pirates,1989"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -86,8 +86,8 @@ func main() {
 
 	// Create players file (json.gz extension)
 	fmt.Println("\nCreating players file with .json.gz extension...")
-	playersFile := lfs.New(PlayersFileType, 2023)
-	ts3, err := lfs.Write(playersFile, []byte(`{"players":[{"id":1,"name":"Player A"}]}`))
+	playersFile := vfs.New(PlayersFileType, 2023)
+	ts3, err := vfs.Write(playersFile, []byte(`{"players":[{"id":1,"name":"Player A"}]}`))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func main() {
 
 	// List versions for themes
 	fmt.Println("\nListing all versions of themes file...")
-	versions, err := lfs.Versions(themesFile)
+	versions, err := vfs.Versions(themesFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func main() {
 	// Correct filename
 	filename1 := fmt.Sprintf("themes.csv.gz.%s", ts1)
 	fmt.Printf("\nDetecting: %s\n", filename1)
-	detectedTS, err := lfs.Detect(filename1, themesFile)
+	detectedTS, err := vfs.Detect(filename1, themesFile)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 	} else {
@@ -120,7 +120,7 @@ func main() {
 	// Wrong extension (only .csv instead of .csv.gz)
 	filename2 := fmt.Sprintf("themes.csv.%s", ts1)
 	fmt.Printf("\nDetecting: %s\n", filename2)
-	_, err = lfs.Detect(filename2, themesFile)
+	_, err = vfs.Detect(filename2, themesFile)
 	if err != nil {
 		fmt.Printf("❌ Not detected (expected): %v\n", err)
 	}
@@ -128,7 +128,7 @@ func main() {
 	// Wrong extension (.gz.csv instead of .csv.gz)
 	filename3 := fmt.Sprintf("themes.gz.csv.%s", ts1)
 	fmt.Printf("\nDetecting: %s\n", filename3)
-	_, err = lfs.Detect(filename3, themesFile)
+	_, err = vfs.Detect(filename3, themesFile)
 	if err != nil {
 		fmt.Printf("❌ Not detected (expected): %v\n", err)
 	}
@@ -137,19 +137,19 @@ func main() {
 	fmt.Println("\n=== FIND WITH MULTI-PART EXTENSIONS ===")
 
 	fmt.Println("\nFinding all themes files...")
-	timestamps, err := lfs.Find("catalog", themesFile)
+	timestamps, err := vfs.Find("catalog", themesFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Found %d file(s):\n", len(timestamps))
 	for i, ts := range timestamps {
 		fmt.Printf("  %d. themes.csv.gz.%s\n", i+1, ts)
-		data, _ := lfs.Read(themesFile, ts)
+		data, _ := vfs.Read(themesFile, ts)
 		fmt.Printf("     Preview: %s...\n", string(data[:min(50, len(data))]))
 	}
 
 	fmt.Println("\nFinding all players files...")
-	timestamps, err = lfs.Find("2023/players", playersFile)
+	timestamps, err = vfs.Find("2023/players", playersFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func main() {
 
 	// Read specific version
 	fmt.Println("\nReading specific version...")
-	data, err := lfs.Read(themesFile, ts2)
+	data, err := vfs.Read(themesFile, ts2)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package localfs
+package versionfs
 
 import (
 	"github.com/stretchr/testify/assert"

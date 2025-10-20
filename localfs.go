@@ -1,20 +1,20 @@
-// Package localfs provides a versioned file system for managing files with automatic timestamping.
+// Package versionfs provides a versioned file system for managing files with automatic timestamping.
 //
-// LocalFS allows you to store and manage different types of files with automatic version control.
+// VersionFS allows you to store and manage different types of files with automatic version control.
 // Each file write creates a new timestamped version, and you can list, read, and manage versions.
 //
 // Example usage:
 //
-//	lfs := localfs.New("./data")
-//	lfs.RegisterFileType(LeagueFileType, func(args ...any) localfs.File {
+//	vfs := versionfs.New("./data")
+//	vfs.RegisterFileType(LeagueFileType, func(args ...any) versionfs.File {
 //	    return LeagueFile{season: args[0].(int)}
 //	})
-//	file := lfs.New(LeagueFileType, 2023)
-//	ts, err := lfs.Write(file, []byte("data"))
+//	file := vfs.New(LeagueFileType, 2023)
+//	ts, err := vfs.Write(file, []byte("data"))
 //
 // Files are stored with the pattern: dir/name.ext.timestamp
 // For example: 2023/league/league.json.20231019140523
-package localfs
+package versionfs
 
 import (
 	"errors"

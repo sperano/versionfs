@@ -1,9 +1,9 @@
-# localfs
+# versionfs
 
 A Go library for managing versioned files in a local filesystem with automatic timestamping.
 
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue.svg)](https://golang.org/doc/install)
-[![Coverage](https://img.shields.io/badge/coverage-93.3%25-brightgreen.svg)](https://github.com/ericsperano/localfs)
+[![Coverage](https://img.shields.io/badge/coverage-94.2%25-brightgreen.svg)](https://github.com/sperano/versionfs)
 
 ## Features
 
@@ -18,7 +18,7 @@ A Go library for managing versioned files in a local filesystem with automatic t
 ## Installation
 
 ```bash
-go get github.com/ericsperano/localfs
+go get github.com/sperano/versionfs
 ```
 
 ## Quick Start
@@ -28,12 +28,12 @@ package main
 
 import (
     "fmt"
-    "github.com/ericsperano/localfs"
+    "github.com/sperano/versionfs"
 )
 
 // Define your file types
 const (
-    LeagueFileType localfs.FileType = iota
+    LeagueFileType versionfs.FileType = iota
     RosterFileType
 )
 
@@ -47,40 +47,40 @@ func (f LeagueFile) Name() string { return "league" }
 func (f LeagueFile) Ext() string  { return "json" }
 
 func main() {
-    // Create a new LocalFS instance
-    lfs := localfs.New("./data")
+    // Create a new VersionFS instance
+    vfs := versionfs.New("./data")
 
     // Register file types
-    lfs.RegisterFileType(LeagueFileType, func(args ...any) localfs.File {
+    vfs.RegisterFileType(LeagueFileType, func(args ...any) versionfs.File {
         return LeagueFile{season: args[0].(int)}
     })
 
     // Create a file
-    file := lfs.New(LeagueFileType, 2023)
+    file := vfs.New(LeagueFileType, 2023)
 
     // Write data (creates: 2023/league/league.json.20231019140523)
-    ts, err := lfs.Write(file, []byte(`{"name": "Premier League"}`))
+    ts, err := vfs.Write(file, []byte(`{"name": "Premier League"}`))
     if err != nil {
         panic(err)
     }
     fmt.Printf("Created version: %s\n", ts)
 
     // Read the file
-    data, err := lfs.Read(file, ts)
+    data, err := vfs.Read(file, ts)
     if err != nil {
         panic(err)
     }
     fmt.Printf("Data: %s\n", data)
 
     // List all versions
-    versions, err := lfs.Versions(file)
+    versions, err := vfs.Versions(file)
     if err != nil {
         panic(err)
     }
     fmt.Printf("Found %d versions\n", len(versions))
 
     // Get the latest version
-    latest, err := lfs.LastVersion(file)
+    latest, err := vfs.LastVersion(file)
     if err != nil {
         panic(err)
     }
@@ -105,19 +105,19 @@ The timestamp format is: `YYYYMMDDHHmmss` (e.g., `20231019140523` = October 19, 
 
 #### Write
 ```go
-func (l *LocalFS) Write(file File, data []byte) (Timestamp, error)
+func (v *VersionFS) Write(file File, data []byte) (Timestamp, error)
 ```
 Writes data to a file and returns the generated timestamp. Creates the directory if it doesn't exist.
 
 #### Read
 ```go
-func (l *LocalFS) Read(file File, ts Timestamp) ([]byte, error)
+func (v *VersionFS) Read(file File, ts Timestamp) ([]byte, error)
 ```
 Reads a specific version of a file.
 
 #### Remove
 ```go
-func (l *LocalFS) Remove(file File, ts Timestamp) error
+func (v *VersionFS) Remove(file File, ts Timestamp) error
 ```
 Removes a specific version of a file.
 
@@ -125,19 +125,19 @@ Removes a specific version of a file.
 
 #### Versions
 ```go
-func (l *LocalFS) Versions(file File) ([]Timestamp, error)
+func (v *VersionFS) Versions(file File) ([]Timestamp, error)
 ```
 Lists all versions of a file, sorted newest first. Returns empty slice if directory doesn't exist.
 
 #### LastVersion
 ```go
-func (l *LocalFS) LastVersion(file File) (Timestamp, error)
+func (v *VersionFS) LastVersion(file File) (Timestamp, error)
 ```
 Returns the most recent version of a file. Returns `ErrNoVersions` if no versions exist.
 
 #### HasSome
 ```go
-func (l *LocalFS) HasSome(file File) (bool, error)
+func (v *VersionFS) HasSome(file File) (bool, error)
 ```
 Checks if any versions of a file exist.
 
@@ -145,14 +145,14 @@ Checks if any versions of a file exist.
 
 #### Detect (Detector)
 ```go
-func (l *LocalFS) Detect(filename string, file File) (Timestamp, error)
+func (v *VersionFS) Detect(filename string, file File) (Timestamp, error)
 ```
 Checks if a filename matches a file type pattern and extracts the timestamp.
 
 **Example:**
 ```go
-file := lfs.New(LeagueFileType, 2023)
-ts, err := lfs.Detect("league.json.20231019140523", file)
+file := vfs.New(LeagueFileType, 2023)
+ts, err := vfs.Detect("league.json.20231019140523", file)
 if err != nil {
     // Filename doesn't match the pattern
     fmt.Println("Not a league file")
@@ -163,14 +163,14 @@ if err != nil {
 
 #### Find (Finder)
 ```go
-func (l *LocalFS) Find(dir string, file File) ([]Timestamp, error)
+func (v *VersionFS) Find(dir string, file File) ([]Timestamp, error)
 ```
 Searches a directory for all files matching a file type, returning their timestamps.
 
 **Example:**
 ```go
-file := lfs.New(LeagueFileType, 2023)
-timestamps, err := lfs.Find("2023/league", file)
+file := vfs.New(LeagueFileType, 2023)
+timestamps, err := vfs.Find("2023/league", file)
 if err != nil {
     panic(err)
 }
@@ -183,13 +183,13 @@ for _, ts := range timestamps {
 
 #### PathExists
 ```go
-func (l *LocalFS) PathExists(path string) (bool, error)
+func (v *VersionFS) PathExists(path string) (bool, error)
 ```
 Checks if a path exists in the filesystem.
 
 #### MkdirAll
 ```go
-func (l *LocalFS) MkdirAll(path string, perm os.FileMode) error
+func (v *VersionFS) MkdirAll(path string, perm os.FileMode) error
 ```
 Creates a directory and all parent directories.
 
@@ -209,13 +209,13 @@ type File interface {
 
 ```go
 // Create from time.Time
-ts := localfs.NewFromTime(time.Now())
+ts := versionfs.NewFromTime(time.Now())
 
 // Parse from string
-ts, err := localfs.NewTimestamp("20231019140523")
+ts, err := versionfs.NewTimestamp("20231019140523")
 
 // Parse simple date format
-ts, err := localfs.NewTimestampSimple("2023-10-19")
+ts, err := versionfs.NewTimestampSimple("2023-10-19")
 
 // Format timestamps
 fmt.Println(ts.String())            // "20231019140523"
@@ -264,7 +264,7 @@ func (f RosterFile) Ext() string {
 
 ## Design Goals
 
-**LocalFS** is designed for managing different types of files that:
+**VersionFS** is designed for managing different types of files that:
 - Have no parameters (e.g., Lego Themes catalog)
 - Have parameters (e.g., Team Roster with team ID and date)
 - Need multiple generations/versions
@@ -286,7 +286,7 @@ go test -cover
 go test -v
 ```
 
-Current test coverage: **93.3%**
+Current test coverage: **94.2%**
 
 ## Requirements
 

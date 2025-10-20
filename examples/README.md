@@ -1,6 +1,6 @@
-# LocalFS Examples
+# VersionFS Examples
 
-This directory contains runnable examples demonstrating various features of the LocalFS library.
+This directory contains runnable examples demonstrating various features of the VersionFS library.
 
 ## Running the Examples
 
@@ -21,8 +21,8 @@ go run ./examples/basic
 
 ### 1. Basic Usage (`basic/`)
 
-Demonstrates core LocalFS functionality:
-- Creating a LocalFS instance
+Demonstrates core VersionFS functionality:
+- Creating a VersionFS instance
 - Registering file types
 - Writing files (creates new versions)
 - Reading specific versions
@@ -90,12 +90,12 @@ func (f MyFile) Ext() string  { return "ext" }
 
 2. Register your file type:
 ```go
-lfs.RegisterFileType(MyFileType, func(args ...any) localfs.File {
+vfs.RegisterFileType(MyFileType, func(args ...any) versionfs.File {
     return MyFile{ /* initialize from args */ }
 })
 ```
 
-3. Use the LocalFS methods to manage your files!
+3. Use the VersionFS methods to manage your files!
 
 ## Tips
 
